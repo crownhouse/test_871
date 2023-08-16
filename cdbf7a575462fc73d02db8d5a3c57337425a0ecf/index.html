@@ -301,6 +301,11 @@ var customMarker= L.Icon.extend({
     
 });
 
+//remove clear all option from delete dust bin 
+L.EditToolbar.Delete.include({
+    removeAllLayers: false
+});
+    
   
 //add drawing tools to map and default polygons to red once zoomed and circle to default to blue 
 map.drawControl = new L.Control.Draw({
@@ -391,7 +396,7 @@ var circle = L.circle([click.lat, click.lng], {
         "SELECT cartodb_id, geom, name_lat, area, fsrn_db  FROM drawn_items " + 
    "ORDER BY (ST_Centroid(geom))::geography <-> ST_SetSRID(ST_MakePoint(" + 
         click.lng + "," + click.lat + 
-        "), 4326)::geography LIMIT 15";
+        "), 4326)::geography LIMIT 30";
 
 
 // Get GeoJSON & add to map
