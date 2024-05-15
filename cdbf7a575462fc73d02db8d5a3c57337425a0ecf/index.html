@@ -10,6 +10,8 @@
     
 
 
+    
+
     <link rel="stylesheet" href="https://labs.os.uk/public/os-api-branding/v0.3.0/os-api-branding.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="css/leaflet.draw.css"/>
@@ -39,6 +41,7 @@
         #sB14 {position: absolute;  top: 650px;  right: 10px;  padding: 10px;  z-index: 400;}
         #sB15 {position: absolute;  top: 690px;  right: 10px;  padding: 10px;  z-index: 400;}
         #rB1 {position: absolute;  top: 730px;  right: 10px;  padding: 10px;  z-index: 400;}
+        drawArrowBtn {cursor: pointer; background:  color: ##ffffff; border: 2px solid #c6c0ab ; padding: 0 10px; box-shadow: 0 1px 5px rgba(0,0,0,0.2); width: 33px; height: 33px;  border-radius: 4px; position: absolute;  top: 315px;  left: 10px;   z-index: 400;}
         
         .siteButtons:hover{opacity: 0.8;  cursor: pointer;}
 
@@ -97,19 +100,32 @@
 
 <button class= siteButtons onclick="Action16()"id="rB1"> Refresh </button>
 
+<button id="drawArrowBtn">></button>
 
 
+
+    
 <canvas id="myCanvasElement"></canvas>
-
+    
  
 <script src="https://labs.os.uk/public/os-api-branding/v0.3.0/os-api-branding.js"></script>
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+
+<script src="js/leaflet.geometryutil.js"></script>
+
+
+    
+    
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js">"></script>
 <script src="https://labs.os.uk/public/assets/lib/Control.Geocoder.js"></script>
 
 <script src="js/leaflet.contextmenu.js"></script>
+
+    
+<script src="js/leaflet-arrowheads.js"></script>
 
 
 
@@ -804,10 +820,46 @@ function Action16(){sitetagItems.eachLayer(function(l){sitetagItems.removeLayer(
 
 
 </script>
+
+
+<script>
+    var drawingArrow = false;
+    var arrowStart = null;
+
+    function startDrawingArrow() {
+        drawingArrow = true;
+        arrowStart = null;
+        map.once('click', function(e) {
+            arrowStart = e.latlng;
+            map.once('click', defineArrowEnd);
+        });
+    }
+
+    function defineArrowEnd(e) {
+        if (arrowStart) {
+            var arrowEnd = e.latlng;
+            var arrow = L.polyline([arrowStart, arrowEnd], {
+                color: 'black',
+                weight: 2
+            });
+            console.log(arrow);
+            arrow.arrowheads({
+                size: '8px',
+                yawn: 60,
+                fill: true,
+                frequency: 'endonly',
+                color: 'black'
+            }).addTo(sitetagItems); // Add to sitetagItems
+        }
+        drawingArrow = false;
+    }
+
+    document.getElementById('drawArrowBtn').onclick = startDrawingArrow;
+    
+</script>
+
+    
 </body>
 
-
-
-
-
+    
 </html>
