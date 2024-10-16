@@ -412,7 +412,7 @@ var circle = L.circle([click.lat, click.lng], {
         "SELECT cartodb_id, geom, name_lat, area, fsrn_db  FROM drawn_items " + 
    "ORDER BY (ST_Centroid(geom))::geography <-> ST_SetSRID(ST_MakePoint(" + 
         click.lng + "," + click.lat + 
-        "), 4326)::geography LIMIT 30";
+        "), 4326)::geography LIMIT 50";
 
 
 // Get GeoJSON & add to map
