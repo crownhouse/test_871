@@ -8,16 +8,10 @@
     <link rel="stylesheet" href="css/CartoDB.css"/>
     <script src="js/CartoDB.js"></script>
     
-
-
-    
-
     <link rel="stylesheet" href="https://labs.os.uk/public/os-api-branding/v0.3.0/os-api-branding.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="css/leaflet.draw.css"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-control-geocoder@1.13.0/dist/Control.Geocoder.css" />
-
-
     <link rel="stylesheet" href="css/leaflet.contextmenu.css"/> 
     
     <style>
@@ -40,11 +34,54 @@
         #sB13 {position: absolute;  top: 610px;  right: 10px;  padding: 10px;  z-index: 400;}
         #sB14 {position: absolute;  top: 650px;  right: 10px;  padding: 10px;  z-index: 400;}
         #sB15 {position: absolute;  top: 690px;  right: 10px;  padding: 10px;  z-index: 400;}
-        #rB1 {position: absolute;  top: 730px;  right: 10px;  padding: 10px;  z-index: 400;}
-        #drawArrowBtn {cursor: pointer; background:  color: ##ffffff; border: 2px solid #c6c0ab ; padding: 0 10px; box-shadow: 0 1px 5px rgba(0,0,0,0.2); width: 33px; height: 33px;  border-radius: 4px; position: absolute;  top: 315px;  left: 10px;   z-index: 400;}
+        #rB1  {position: absolute;  top: 730px;  right: 10px;  padding: 10px;  z-index: 400;}
+
+        #drawArrowBtn {
+            cursor: pointer;
+            background:  color: ##ffffff;
+            border: 2px solid #c6c0ab ;
+            padding: 0 10px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+            width: 33px;
+            height: 33px;
+            border-radius: 4px;
+            position: absolute;
+            top: 315px;
+            left: 10px;
+            z-index: 400;
+        }
+
+        /* Button to trigger copying the double-click marker LngLat */
+        #copyDblClickMarkerBtn {
+            cursor: pointer;
+            border: 2px solid #c6c0ab;
+            padding: 0 10px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+            height: 33px;
+            border-radius: 4px;
+            position: absolute;
+            top: 360px;   /* as requested */
+            left: 10px;
+            z-index: 400;
+            background: #ffffff;
+        }
+
+        /* Toast that shows "LngLat Saved" for 0.5s */
+        #copyToast {
+            position: absolute;
+            top: 400px;        /* just below the button */
+            left: 10px;
+            padding: 8px 14px;
+            background: #333;
+            color: #fff;
+            border-radius: 4px;
+            font-size: 14px;
+            opacity: 0;        /* hidden until shown */
+            pointer-events: none;
+            z-index: 9999;
+        }
         
         .siteButtons:hover{opacity: 0.8;  cursor: pointer;}
-
     </style>
   
 </head>
@@ -65,91 +102,81 @@
     }
 
     #myCanvasElement {
-  position: absolute;
-  /* Let mouse events go through to reach the map underneath */
-  pointer-events: none;
-  /* Make sure to be above the map pane (.leaflet-pane) */
-  z-index: 450;
-}
-
+        position: absolute;
+        /* Let mouse events go through to reach the map underneath */
+        pointer-events: none;
+        /* Make sure to be above the map pane (.leaflet-pane) */
+        z-index: 450;
+    }
 </style>
 
-<div id="header" >
-     
-       <img src="images/dalogo.png" height="40px" alt ="da logo">
-
-
-        </div>
+<div id="header">
+    <img src="images/dalogo.png" height="40px" alt="da logo">
+</div>
 
 <div id="map"></div>
-<button class= siteButtons onclick="Action1()"id="sB1"> Site 1 </button>
-<button class= siteButtons onclick="Action2()"id="sB2"> Site 2 </button>
-<button class= siteButtons onclick="Action3()"id="sB3"> Site 3 </button>
-<button class= siteButtons onclick="Action4()"id="sB4"> Site 4 </button>
-<button class= siteButtons onclick="Action5()"id="sB5"> Site 5 </button>
-<button class= siteButtons onclick="Action6()"id="sB6"> Site 6 </button>
-<button class= siteButtons onclick="Action7()"id="sB7"> Site 7 </button>
-<button class= siteButtons onclick="Action8()"id="sB8"> Site 8 </button>
-<button class= siteButtons onclick="Action9()"id="sB9"> Site 9 </button>
-<button class= siteButtons onclick="Action10()"id="sB10"> Site 10 </button>
-<button class= siteButtons onclick="Action11()"id="sB11"> Site 11 </button>
-<button class= siteButtons onclick="Action12()"id="sB12"> Site 12 </button>
-<button class= siteButtons onclick="Action13()"id="sB13"> Site 13 </button>
-<button class= siteButtons onclick="Action14()"id="sB14"> Site 14 </button>
-<button class= siteButtons onclick="Action15()"id="sB15"> Site 15 </button>
 
-<button class= siteButtons onclick="Action16()"id="rB1"> Refresh </button>
+<button class="siteButtons" onclick="Action1()"  id="sB1"> Site 1 </button>
+<button class="siteButtons" onclick="Action2()"  id="sB2"> Site 2 </button>
+<button class="siteButtons" onclick="Action3()"  id="sB3"> Site 3 </button>
+<button class="siteButtons" onclick="Action4()"  id="sB4"> Site 4 </button>
+<button class="siteButtons" onclick="Action5()"  id="sB5"> Site 5 </button>
+<button class="siteButtons" onclick="Action6()"  id="sB6"> Site 6 </button>
+<button class="siteButtons" onclick="Action7()"  id="sB7"> Site 7 </button>
+<button class="siteButtons" onclick="Action8()"  id="sB8"> Site 8 </button>
+<button class="siteButtons" onclick="Action9()"  id="sB9"> Site 9 </button>
+<button class="siteButtons" onclick="Action10()" id="sB10"> Site 10 </button>
+<button class="siteButtons" onclick="Action11()" id="sB11"> Site 11 </button>
+<button class="siteButtons" onclick="Action12()" id="sB12"> Site 12 </button>
+<button class="siteButtons" onclick="Action13()" id="sB13"> Site 13 </button>
+<button class="siteButtons" onclick="Action14()" id="sB14"> Site 14 </button>
+<button class="siteButtons" onclick="Action15()" id="sB15"> Site 15 </button>
+
+<button class="siteButtons" onclick="Action16()" id="rB1"> Refresh </button>
 
 <button id="drawArrowBtn">></button>
 
+<!-- New button to save LngLat of the double-click marker -->
+<button id="copyDblClickMarkerBtn">Save LngLat</button>
 
-
-    
 <canvas id="myCanvasElement"></canvas>
+
+<!-- Toast message -->
+<div id="copyToast">LngLat Saved</div>
     
- 
 <script src="https://labs.os.uk/public/os-api-branding/v0.3.0/os-api-branding.js"></script>
 <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 
-
 <script src="js/leaflet.geometryutil.js"></script>
-
-
-    
     
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4leaflet/1.0.2/proj4leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js">"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script src="https://labs.os.uk/public/assets/lib/Control.Geocoder.js"></script>
 
 <script src="js/leaflet.contextmenu.js"></script>
-
-    
 <script src="js/leaflet-arrowheads.js"></script>
 
-
-
 <script>
-  //variables for map
-    var apiKey = '0z6udDOAGss8GgMF21GoCXt8VfPVUueg';
-
+    //variables for map
+    var apiKey  = '0z6udDOAGss8GgMF21GoCXt8VfPVUueg';
     var serviceUrl = 'https://api.os.uk/maps/raster/v1/zxy';
-    //variables for os postcode serach 
-  var apiKey2 = '0z6udDOAGss8GgMF21GoCXt8VfPVUueg';
+    //variables for os postcode search 
+    var apiKey2 = '0z6udDOAGss8GgMF21GoCXt8VfPVUueg';
 
     var nameServiceUrl = 'https://api.os.uk/search/names/v1',
         tileServiceUrl = 'https://api.os.uk/maps/raster/v1/zxy';
 
-
-
-
     // Setup the EPSG:27700 (British National Grid) projection.
-    var crs = new L.Proj.CRS('EPSG:27700', '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 +units=m +no_defs', {
-        resolutions: [ 896.0, 448.0, 224.0, 112.0, 56.0, 28.0, 14.0, 7.0, 3.5, 1.75, 0.875, 0.4375, 0.21875, 0.109375, 0.054688],
-        origin: [ -238375.0, 1376256.0 ]
-    });
+    var crs = new L.Proj.CRS('EPSG:27700',
+        '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 ' +
+        '+ellps=airy +towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 +units=m +no_defs',
+        {
+            resolutions: [ 896.0, 448.0, 224.0, 112.0, 56.0, 28.0, 14.0, 7.0, 3.5, 1.75, 0.875, 0.4375, 0.21875, 0.109375, 0.054688],
+            origin: [ -238375.0, 1376256.0 ]
+        }
+    );
    
-
     // Instantiate a tile layer object for the Leisure style (displayed at zoom levels 0-9).
     var leisure = L.tileLayer(serviceUrl + '/Leisure_27700/{z}/{x}/{y}.png?key=' + apiKey, {
         maxZoom: 14,
@@ -175,7 +202,7 @@
         minZoom: 0,
         maxZoom: 14,
         maxNativeZoom: 13,
-        center: transformCoords([ 247692 , 55333]), // wets humble =transformCoords([ 516710, 151737]),
+        center: transformCoords([ 247692 , 55333]),
         zoom: 10,
         maxBounds: [
             transformCoords([ -238375.0, 0.0 ]),
@@ -184,564 +211,401 @@
         attributionControl: false,
         contextmenu: true,
         contextmenuWidth: 140,
-    contextmenuItems: [{
-        text: 'Show coordinates',
-        callback: showCoordinates
-    }, {
-        text: 'Center map here',
-        callback: centerMap
-    }, '-', {
-        text: 'Zoom in',
-        icon: 'images/zoom-in.png',
-        callback: zoomIn
-    }, {
-        text: 'Zoom out',
-        icon: 'images/minus.png',
-        callback: zoomOut
-    }]
+        contextmenuItems: [{
+            text: 'Show coordinates',
+            callback: showCoordinates
+        }, {
+            text: 'Center map here',
+            callback: centerMap
+        }, '-', {
+            text: 'Zoom in',
+            icon: 'images/zoom-in.png',
+            callback: zoomIn
+        }, {
+            text: 'Zoom out',
+            icon: 'images/minus.png',
+            callback: zoomOut
+        }]
     };
+
     function showCoordinates (e) {
-    alert(e.latlng);
-}
-function centerMap (e) {
-    map.panTo(e.latlng);
-}
-
-function zoomIn (e) {
-    map.zoomIn();
-}
-
-function zoomOut (e) {
-    map.zoomOut();
-}
-
+        alert(e.latlng);
+    }
+    function centerMap (e) {
+        map.panTo(e.latlng);
+    }
+    function zoomIn (e) {
+        map.zoomIn();
+    }
+    function zoomOut (e) {
+        map.zoomOut();
+    }
 
     var map = L.map('map', mapOptions);
 
-
-
-//canvas for print frame test only works on zoom level 12 ATM
+    //canvas for print frame test
     var myCanvasElement = document.getElementById('myCanvasElement');
 
     // Adjust the canvas size, assuming we want to cover the entire map.
-    var mapSize = map.getSize('map'); // http://leafletjs.com/reference-1.7.1.html#map-getsize
-    myCanvasElement.width = mapSize.x;
+    var mapSize = map.getSize();
+    myCanvasElement.width  = mapSize.x;
     myCanvasElement.height = mapSize.y;
 
     // Move the canvas inside the map container.
-    var mapContainer = map.getContainer(); // http://leafletjs.com/reference-1.7.1.html#map-getcontainer
+    var mapContainer = map.getContainer();
     mapContainer.appendChild(myCanvasElement);
 
     // Draw on the canvas...
     var context = myCanvasElement.getContext('2d');
     context.strokeStyle = 'rgb(99, 99, 99)';
-    var w = 1530
+    var w  = 1530;
     var w1 = 765;
     var w2 = 382;
-    var h = 2160;
+    var h  = 2160;
     var h1 = 1080;
     var h2 = 540;
-    var x = (mapSize.x -w ) / 2;
-    var x1 = (mapSize.x -w1 ) / 2;
-    var x2 = (mapSize.x -w2 ) / 2;
+    var x  = (mapSize.x - w)  / 2;
+    var x1 = (mapSize.x - w1) / 2;
+    var x2 = (mapSize.x - w2) / 2;
 
-    var y = (mapSize.y -h) / 2;
-    var y1 = (mapSize.y -h1) / 2;
-    var y2 = (mapSize.y -h2) / 2;
+    var y  = (mapSize.y - h)  / 2;
+    var y1 = (mapSize.y - h1) / 2;
+    var y2 = (mapSize.y - h2) / 2;
 
     var myRadius13 = 686;
     var myRadius12 = 343;
     var myRadius11 = 171.5;
   
-//variable for my icon 
-var LeafIcon = L.Icon.extend({
-    options: {
-        iconSize:     [51.7, 25.3],
-        iconAnchor:   [11, 46],
-           }
-});
-var myIcon1 = new LeafIcon({iconUrl: 'images/s1.png'}),
-    myIcon2 = new LeafIcon({iconUrl: 'images/s2.png'}),
-    myIcon3 = new LeafIcon({iconUrl: 'images/s3.png'}),
-    myIcon4 = new LeafIcon({iconUrl: 'images/s4.png'}),
-    myIcon5 = new LeafIcon({iconUrl: 'images/s5.png'}),
-    myIcon6 = new LeafIcon({iconUrl: 'images/s6.png'}),
-    myIcon7 = new LeafIcon({iconUrl: 'images/s7.png'}),
-    myIcon8 = new LeafIcon({iconUrl: 'images/s8.png'}),
-    myIcon9 = new LeafIcon({iconUrl: 'images/s9.png'}),
-    myIcon10 = new LeafIcon({iconUrl: 'images/s10.png'}),
-    myIcon11 = new LeafIcon({iconUrl: 'images/s11.png'}),
-    myIcon12 = new LeafIcon({iconUrl: 'images/s12.png'}),
-    myIcon13 = new LeafIcon({iconUrl: 'images/s13.png'}),
-    myIcon14 = new LeafIcon({iconUrl: 'images/s14.png'}),
-    myIcon15 = new LeafIcon({iconUrl: 'images/s15.png'});
-
-//define myStyle
-var myStyle = {
-    "color": "#f10200",
-    "weight": 5,
-    "opacity": 0.65
-};
-
-
-//add and remove rectangles when zooming    
-map.on('zoomend', function () {
-context.clearRect(0, 0, mapSize.x, mapSize.y)
-if (map.getZoom() == 11 ) { context.strokeRect(x2, y2, w2, h2) }
-else if (map.getZoom() == 12 ) {context.strokeRect(x1, y1, w1, h1) }
-else if (map.getZoom() == 13 ) {context.strokeRect(x, y, w, h)}
-
-});
-
-
-//adds drawn items layer 
-var drawnItems = new L.FeatureGroup().addTo(map);
-
-//adds site tags layer 
-var sitetagItems = new L.layerGroup().addTo(map);
-
-//adds my location layer (drawnoption custom marker hollow pin)
-var myLocation = new L.FeatureGroup().addTo(map);
-
-let cartoData = L.layerGroup().addTo(map);
-
-var cirPin = new L.FeatureGroup().addTo(map);
-
-var customMarker= L.Icon.extend({
-    options: {
-        shadowUrl: null,
-        iconAnchor: new L.Point(12, 20),
-        iconSize: new L.Point(15, 23.333),
-        iconUrl: 'images/newpinhollow1.png'
-    }
-    
-});
-
-//remove clear all option from delete dust bin 
-L.EditToolbar.Delete.include({
-    removeAllLayers: false
-});
-    
-  
-//add drawing tools to map and default polygons to red once zoomed and circle to default to blue 
-map.drawControl = new L.Control.Draw({
-    draw: {
-      rectangle: false,
-      polygon: {
-          shapeOptions: {
-            color: 'red'
-          },
-          allowIntersection: false,
-          drawError: {
-            color: 'orange',
-            timeout: 1000
-          },
-          showArea: true,
-          metric: true,
-          repeatMode: true
-           },
-            
-      circlemarker:false,
-      circle : false, 
-
-        marker:{
-         icon: new customMarker(1), 
-         id: "myMK",
-         class: "myClass"
-         
+    //variable for my icon 
+    var LeafIcon = L.Icon.extend({
+        options: {
+            iconSize:  [51.7, 25.3],
+            iconAnchor:[11, 46],
         }
-     
-      },
-  edit: {
-        featureGroup: drawnItems,   //existing database polys
-        layerGroup: sitetagItems,   // temporary items for printing tags
-        featureGroup: myLocation,     // temporary items for printing circle
-        layerGroup: cartoData,      //polys to go into database
-
-        remove: true
-     }
-});
-
-
-map.addControl(map.drawControl);
-
-let url = 
-    "https://geodcwh.xyz/sql?format=GeoJSON&q="; 
-    //old url for carto          "https://haighd2.carto.com/api/v2/sql?format=GeoJSON&q="; 
-
-let urlSmall= 
-    "https://geodcwh.xyz/sql";
-    
-    //old url small for carto    "https://haighd2.carto.com/api/v2/sql"
-
-let redIcon = L.icon({
-    iconUrl: "images/newpinhollow1.png",
-    iconAnchor: [12, 20],
-    iconSize: [15, 23.333],
-});
-
-
-
- //dbl click to insert circle
-
-map.doubleClickZoom.disable(); 
-map.on('dblclick', function(e) {
-
-
-
-// Clear map
-    myLocation.clearLayers();
-    cirPin.clearLayers();
-    
-
-let click = e.latlng;
-
-var circle = L.circle([click.lat, click.lng], {
-        color: 'blue',
-        radius: 75,
-        fill: false,
-        
-    }).addTo(cirPin); 
-
-
-    // Add location marker
-    L.marker(click, {icon: redIcon}).addTo(cirPin);
-    
-    // Set SQL query to add closest 5 polygons from drawn items 
-    let sqlQueryClosest = 
-        "SELECT cartodb_id, geom, name_lat, area, fsrn_db  FROM drawn_items " + 
-   "ORDER BY (ST_Centroid(geom))::geography <-> ST_SetSRID(ST_MakePoint(" + 
-        click.lng + "," + click.lat + 
-        "), 4326)::geography LIMIT 50";
-
-
-// Get GeoJSON & add to map
-    fetch(url + sqlQueryClosest)
-        .then(function(response) {
-            return response.json();
-        })
-        .then(function(data) {
-            // Add polygons
-            //L.geoJSON(data, {onEachFeature: addPopup, style: myStyle  } {onEachFeature: {function (feature, layer) {myLocation.addLayer(layer)}
-
-          console.log (data)
-
-
-
-
-
-
-
-
-
-
-
-//function addPopup(feature, layer) {
- 
- geojsonLayer = L.geoJson(data, {style: myStyle, 
-          onEachFeature:  function (feature, layer) {
-
-            layer.cartodb_id=feature.properties.cartodb_id;
-            layer.bindPopup(
-                "Area:  "+ feature.properties.area +'  acres' + 
-                 "<br>Report Ref: " + feature.properties.fsrn_db);
-            
-             myLocation.addLayer(layer);
-            
-          }
-
-// this needs to be added somewhere :  "onEachFeature: addPopup,"
-
-          });  
-
-        
-
-        map.addLayer(myLocation);
-
-
-           //L.geoJSON(data, { style: myStyle, onEachFeature: addPopup})
-                
-                                                              
-               
-
-            
-              
- 
-
-function addPopup(feature, layer) {
- 
-
-
-    layer.bindPopup(
-        "Area:  "+ feature.properties.area +'  acres' + 
-        "<br>Report Ref: " + feature.properties.fsrn_db);
-
-
-
-
-
-myLocation.addLayer(layer)
-
-;}
-   
     });
-  
-});
 
+    var myIcon1  = new LeafIcon({iconUrl: 'images/s1.png'}),
+        myIcon2  = new LeafIcon({iconUrl: 'images/s2.png'}),
+        myIcon3  = new LeafIcon({iconUrl: 'images/s3.png'}),
+        myIcon4  = new LeafIcon({iconUrl: 'images/s4.png'}),
+        myIcon5  = new LeafIcon({iconUrl: 'images/s5.png'}),
+        myIcon6  = new LeafIcon({iconUrl: 'images/s6.png'}),
+        myIcon7  = new LeafIcon({iconUrl: 'images/s7.png'}),
+        myIcon8  = new LeafIcon({iconUrl: 'images/s8.png'}),
+        myIcon9  = new LeafIcon({iconUrl: 'images/s9.png'}),
+        myIcon10 = new LeafIcon({iconUrl: 'images/s10.png'}),
+        myIcon11 = new LeafIcon({iconUrl: 'images/s11.png'}),
+        myIcon12 = new LeafIcon({iconUrl: 'images/s12.png'}),
+        myIcon13 = new LeafIcon({iconUrl: 'images/s13.png'}),
+        myIcon14 = new LeafIcon({iconUrl: 'images/s14.png'}),
+        myIcon15 = new LeafIcon({iconUrl: 'images/s15.png'});
+
+    //define myStyle
+    var myStyle = {
+        "color": "#f10200",
+        "weight": 5,
+        "opacity": 0.65
+    };
+
+    //add and remove rectangles when zooming    
+    map.on('zoomend', function () {
+        context.clearRect(0, 0, mapSize.x, mapSize.y);
+        if (map.getZoom() == 11 )      { context.strokeRect(x2, y2, w2, h2); }
+        else if (map.getZoom() == 12 ) { context.strokeRect(x1, y1, w1, h1); }
+        else if (map.getZoom() == 13 ) { context.strokeRect(x,  y,  w,  h ); }
+    });
+
+    //adds drawn items layer 
+    var drawnItems = new L.FeatureGroup().addTo(map);
+
+    //adds site tags layer 
+    var sitetagItems = new L.layerGroup().addTo(map);
+
+    //adds my location layer (drawnoption custom marker hollow pin)
+    var myLocation = new L.FeatureGroup().addTo(map);
+
+    let cartoData = L.layerGroup().addTo(map);
+
+    var cirPin        = new L.FeatureGroup().addTo(map);
+    var dblClickMarker = null; // store the marker created on double-click
+
+    var customMarker = L.Icon.extend({
+        options: {
+            shadowUrl: null,
+            iconAnchor: new L.Point(12, 20),
+            iconSize:  new L.Point(15, 23.333),
+            iconUrl:   'images/newpinhollow1.png'
+        }
+    });
     
-
+    //remove clear all option from delete dust bin 
+    L.EditToolbar.Delete.include({
+        removeAllLayers: false
+    });
     
+    //add drawing tools to map and default polygons to red once zoomed and circle to default to blue 
+    map.drawControl = new L.Control.Draw({
+        draw: {
+            rectangle: false,
+            polygon: {
+                shapeOptions: {
+                    color: 'red'
+                },
+                allowIntersection: false,
+                drawError: {
+                    color: 'orange',
+                    timeout: 1000
+                },
+                showArea: true,
+                metric: true,
+                repeatMode: true
+            },
+            circlemarker:false,
+            circle : false, 
+            marker:{
+                icon: new customMarker(1), 
+                id: "myMK",
+                class: "myClass"
+            }
+        },
+        edit: {
+            featureGroup: drawnItems,
+            layerGroup: sitetagItems,
+            featureGroup: myLocation,
+            layerGroup: cartoData,
+            remove: true
+        }
+    });
 
-    
+    map.addControl(map.drawControl);
 
-    
+    let url = "https://geodcwh.xyz/sql?format=GeoJSON&q=";
+    let urlSmall = "https://geodcwh.xyz/sql";
 
+    let redIcon = L.icon({
+        iconUrl:   "images/newpinhollow1.png",
+        iconAnchor:[12, 20],
+        iconSize:  [15, 23.333],
+    });
 
+    //dbl click to insert circle
+    map.doubleClickZoom.disable(); 
+    map.on('dblclick', function(e) {
 
+        // Clear map
+        myLocation.clearLayers();
+        cirPin.clearLayers();
+        
+        let click = e.latlng;
 
+        var circle = L.circle([click.lat, click.lng], {
+            color: 'blue',
+            radius: 75,
+            fill: false,
+        }).addTo(cirPin); 
 
+        // store the marker so we can copy its lat,lng later
+        dblClickMarker = L.marker(click, {icon: redIcon}).addTo(cirPin);
+        
+        // Set SQL query to add closest 50 polygons from drawn items 
+        let sqlQueryClosest = 
+            "SELECT cartodb_id, geom, name_lat, area, fsrn_db  FROM drawn_items " + 
+            "ORDER BY (ST_Centroid(geom))::geography <-> ST_SetSRID(ST_MakePoint(" + 
+            click.lng + "," + click.lat + 
+            "), 4326)::geography LIMIT 50";
 
+        // Get GeoJSON & add to map
+        fetch(url + sqlQueryClosest)
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                console.log(data);
 
+                geojsonLayer = L.geoJson(data, {
+                    style: myStyle, 
+                    onEachFeature:  function (feature, layer) {
+                        layer.cartodb_id = feature.properties.cartodb_id;
+                        layer.bindPopup(
+                            "Area:  "+ feature.properties.area + " acres" + 
+                            "<br>Report Ref: " + feature.properties.fsrn_db
+                        );
+                        myLocation.addLayer(layer);
+                    }
+                });  
 
-
-
+                map.addLayer(myLocation);
+            });
+    });
 
     function persistOnCartoDB(action, layers) {
-      
-      var cartodb_ids = [];
-      var geojsons = [];
-      var area_updates = [];
+        var cartodb_ids = [];
+        var geojsons    = [];
+        var area_updates= [];
 
-function calcArea(layer) {
-    return (L.GeometryUtil.geodesicArea(layer.getLatLngs()[0])*0.000247105).toFixed(2)
-}
-      console.log(action + " persistOnCartoDB");
-
-      switch (action) {
-        case "UPDATE":
-          console.log(myLocation.getLayers().length);
-          if (myLocation.getLayers().length < 1) return;
-
-          myLocation.eachLayer(function(layer) {
-            cartodb_ids.push(layer.cartodb_id);
-            geojsons.push("'" + JSON.stringify(layer.toGeoJSON().geometry) + "'");
-            area_updates.push([calcArea(layer)]);
-            //new code   layer.cartodb_id,
-          });
-          break;
-
-        case "DELETE":
-          layers.eachLayer(function(layer) {
-            cartodb_ids.push(layer.cartodb_id);
-            geojsons.push("''");
-            area_updates.push ("0");
-          });
-          break;
-      }
-
-      //constructs the SQL statement
-      
-      var sql2 = "SELECT draw_items_upsert(ARRAY[";
-      sql2 += cartodb_ids.join(",");
-      sql2 += "],ARRAY[";
-      sql2 += geojsons.join(",");
-      sql2 += "],"
-      sql2 += "ARRAY[";
-      sql2 += area_updates.join(",");
-      sql2 += "]::numeric[]);";
-
-      console.log("persisting... " + sql2);//optional/debugging
-      //POST the SQL up to CARTO
-      $.ajax({
-        type: 'POST',
-        url: 'https://geodcwh.xyz/sql',  //'https://haighd2.carto.com/api/v2/sql', 
-        crossDomain: true,
-        data: {
-          "q": sql2
-        },
-        dataType: 'json',
-        success: function(responseData, textStatus, jqXHR) {
-          console.log("Data saved"+ responseData);
-
-          if (action == "INSERT")
-            layers.cartodb_id = responseData.rows[0].cartodb_id;
-        },
-        error: function(responseData, textStatus, errorThrown) {
-          console.log("Problem saving the data " + responseData);
+        function calcArea(layer) {
+            return (L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]) * 0.000247105).toFixed(2);
         }
-      });
+        console.log(action + " persistOnCartoDB");
+
+        switch (action) {
+            case "UPDATE":
+                console.log(myLocation.getLayers().length);
+                if (myLocation.getLayers().length < 1) return;
+
+                myLocation.eachLayer(function(layer) {
+                    cartodb_ids.push(layer.cartodb_id);
+                    geojsons.push("'" + JSON.stringify(layer.toGeoJSON().geometry) + "'");
+                    area_updates.push([calcArea(layer)]);
+                });
+                break;
+
+            case "DELETE":
+                layers.eachLayer(function(layer) {
+                    cartodb_ids.push(layer.cartodb_id);
+                    geojsons.push("''");
+                    area_updates.push("0");
+                });
+                break;
+        }
+
+        var sql2  = "SELECT draw_items_upsert(ARRAY[";
+        sql2     += cartodb_ids.join(",");
+        sql2     += "],ARRAY[";
+        sql2     += geojsons.join(",");
+        sql2     += "],ARRAY[";
+        sql2     += area_updates.join(",");
+        sql2     += "]::numeric[]);";
+
+        console.log("persisting... " + sql2);
+        $.ajax({
+            type: 'POST',
+            url: 'https://geodcwh.xyz/sql',
+            crossDomain: true,
+            data: {
+                "q": sql2
+            },
+            dataType: 'json',
+            success: function(responseData, textStatus, jqXHR) {
+                console.log("Data saved"+ responseData);
+                if (action == "INSERT")
+                    layers.cartodb_id = responseData.rows[0].cartodb_id;
+            },
+            error: function(responseData, textStatus, errorThrown) {
+                console.log("Problem saving the data " + responseData);
+            }
+        });
     }
 
-
-
- // On draw - create editable popup
-map.addEventListener("draw:created", function(e) {
-    e.layer.addTo(drawnItems);
-    createFormPopup();
-     var layers = e.layer;//was e.layers not layer
-      drawnItems.addLayer(layers);
-      //console.log(e);
-     // persistOnCartoDB("INSERT", layers);
-});
-
-
-  // On edit or delete - Close popup
-map.addEventListener("draw:editstart", function(e) {
-    drawnItems.closePopup();
-    
-});
-map.addEventListener("draw:deletestart", function(e) {
-    drawnItems.closePopup();
-});
-map.addEventListener("draw:editstop", function(e) {
-    var layers = e.layers;
-      persistOnCartoDB("UPDATE", layers);
-});
-
- map.on('draw:deleted', function (e) {
-      drawnItems.closePopup();
-
-      console.log("draw:deleted fired");
-      var layers = e.layers;
-      persistOnCartoDB("DELETE", layers);
-      console.log("draw:deleted:delete persistOnCartoDB fired");
+    // On draw - create editable popup
+    map.addEventListener("draw:created", function(e) {
+        e.layer.addTo(drawnItems);
+        createFormPopup();
+        var layers = e.layer;
+        drawnItems.addLayer(layers);
     });
 
+    // On edit or delete - Close popup
+    map.addEventListener("draw:editstart", function(e) {
+        drawnItems.closePopup();
+    });
+    map.addEventListener("draw:deletestart", function(e) {
+        drawnItems.closePopup();
+    });
+    map.addEventListener("draw:editstop", function(e) {
+        var layers = e.layers;
+        persistOnCartoDB("UPDATE", layers);
+    });
 
+    map.on('draw:deleted', function (e) {
+        drawnItems.closePopup();
+        console.log("draw:deleted fired");
+        var layers = e.layers;
+        persistOnCartoDB("DELETE", layers);
+        console.log("draw:deleted:delete persistOnCartoDB fired");
+    });
 
-/*map.addEventListener("draw:deletestop", function(e) {
-    if(drawnItems.getLayers().length > 0) {
-        drawnItems.openPopup();
+    function addPopup2 (feature, layer) {
+        layer.bindPopup(
+            'New Drawn Area: ' + ("double click on pin to refresh") + ' acres' + 
+            "<br>Report Ref: " + feature.properties.fsrn_db 
+        );
     }
-    
-});*/
 
+    // Create editable popup
+    function createFormPopup() {
+        let popupContent = 
+            '<form>' + 
+            'FSRN:<br><input type="text" id="input_fsrn"><br>' +
+            '<input type="button" value="Submit" id="submit">' + 
+            '</form>';
+        drawnItems.bindPopup(popupContent).openPopup();
+    }
 
-/*
-var layers = e.layers;
-      persistOnCartoDB("DELETE", layers);*/
-
-
-function addPopup2 (feature, layer) {
-    layer.bindPopup('New Drawn Area: '+ ( "double click on pin to refresh") +' acres' + 
-        "<br>Report Ref: " +
-        feature.properties.fsrn_db 
-    );
-}
-
-
-
-
-
-
-// Create editable popup
-function createFormPopup() {
-    let popupContent = 
-        '<form>' + 
-        'FSRN:<br><input type="text" id="input_fsrn"><br>' +
-     
-        '<input type="button" value="Submit" id="submit">' + 
-        '</form>';
-    drawnItems.bindPopup(popupContent).openPopup();
-}
-
-function setData(e) {
-    
-    if(e.target && e.target.id == "submit") {
-        
-        // Get user input fsrn
-        let enteredFSRN = document.getElementById("input_fsrn").value;
-    
-        
+    function setData(e) {
+        if(e.target && e.target.id == "submit") {
+            // Get user input fsrn
+            let enteredFSRN = document.getElementById("input_fsrn").value;
 
             // For each drawn layer
             drawnItems.eachLayer(function(layer) {
 
-        let seeArea = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
-        let seeArea2 = (seeArea*0.000247105).toFixed(2)
+                let seeArea  = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
+                let seeArea2 = (seeArea * 0.000247105).toFixed(2);
                
-                     // Create SQL expression to insert layer
-                    let drawing = JSON.stringify(layer.toGeoJSON().geometry);
-                    let sql = 
-                        "INSERT INTO drawn_items (geom, fsrn_db, area) " + 
-                        "VALUES (ST_SetSRID(ST_GeomFromGeoJSON('" + 
-                        drawing + "'), 4326), '" + 
-                        enteredFSRN + "', '" +
-                        seeArea2 + "')";
-                    console.log(urlSmall+sql);
+                let drawing = JSON.stringify(layer.toGeoJSON().geometry);
+                let sql = 
+                    "INSERT INTO drawn_items (geom, fsrn_db, area) " + 
+                    "VALUES (ST_SetSRID(ST_GeomFromGeoJSON('" + 
+                    drawing + "'), 4326), '" + 
+                    enteredFSRN + "', '" +
+                    seeArea2 + "')";
+                console.log(urlSmall + sql);
 
-                    // Send the data
-                    fetch(urlSmall, {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/x-www-form-urlencoded"
-                        },
-                        body: "q=" + encodeURI(sql)
-                    })
-                    .then(function(response) {
-                        return response.json();
-                    })
-                    .then(function(data) {
-                        console.log("Data saved:", data);
-                    })
-                    .catch(function(error) {
-                        console.log("Problem saving the data:", error);
-                    });
+                fetch(urlSmall, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: "q=" + encodeURI(sql)
+                })
+                .then(function(response) {
+                    return response.json();
+                })
+                .then(function(data) {
+                    console.log("Data saved:", data);
+                })
+                .catch(function(error) {
+                    console.log("Problem saving the data:", error);
+                });
                 
-                // Transfer submitted drawing to the CARTO layer
                 let newData = layer.toGeoJSON();
                 newData.properties.fsrn_db = enteredFSRN;
-               
-                //L.geoJSON(newData, {onEachFeature: addPopup, style: myStyle}); myLocation.addLayer(layer);
 
                 L.geoJSON(newData, {onEachFeature: addPopup2, style: myStyle}).addTo(myLocation);
-
             });
 
-            // Clear drawn items layer
             drawnItems.closePopup();
             drawnItems.clearLayers();
-           
+        }
     }
-}
 
-// Click on 'submit' event listener
-document.addEventListener("click", setData);
+    // Click on 'submit' event listener
+    document.addEventListener("click", setData);
 
+    //zooming changes existing polygon and circle properties
+    map.on('zoomend', function() {
+        map.drawControl.setDrawingOptions({
+            polygon: {
+                shapeOptions: {color: 'red', showArea: true, clickable: true}
+            },
+            circle: {
+                shapeOptions: {color: 'blue', showArea: true, clickable: true, fill: false}
+            }
+        });
+    });
 
-
-
-
-
-
-
-
-
-//zooming changes existing polygon and circle properties
-map.on('zoomend', function() {
-    ;
-    map.drawControl.setDrawingOptions({
-   
-    polygon: {
-      shapeOptions: {color: 'red', showArea: true, clickable: true}},
-
-    circle: {
-      shapeOptions: {color: 'blue', showArea: true, clickable: true, fill: false}},                               
- });
-});
-
-
-
-
-
-
-
-
-   
-
-
- // Add geocoder control to the map.
-    // Further information can be found at https://github.com/OrdnanceSurvey/leaflet-control-geocoder.
+    // Add geocoder control to the map.
     var geocoder = L.Control.geocoder({
         geocoder: new L.Control.Geocoder.osNamesAPI(apiKey),
         defaultMarkGeocode: false
@@ -762,73 +626,57 @@ map.on('zoomend', function() {
     })
     .addTo(map);
 
-
-
-
     //add zoom indicator 
-       var ZoomViewer = L.Control.extend({
+    var ZoomViewer = L.Control.extend({
         onAdd: function(){
-
             var container= L.DomUtil.create('div');
-            var gauge = L.DomUtil.create('div');
-            container.style.width = '100px';
-            container.style.background = 'rgba(255,255,255,0.5)';
-            container.style.textAlign = 'left';
+            var gauge    = L.DomUtil.create('div');
+            container.style.width       = '100px';
+            container.style.background  = 'rgba(255,255,255,0.5)';
+            container.style.textAlign   = 'left';
             map.on('zoomstart zoom zoomend', function(ev){
                 gauge.innerHTML = 'Zoom level: ' + map.getZoom();
             })
             container.appendChild(gauge);
-
             return container;
         }
     });
     (new ZoomViewer).addTo(map);
 
-
-
-
-    </script>
 </script>
 
 <script>
-
-
-
-
-//function to add markers on button click 
-function Action1(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon1,draggable:true}).addTo(sitetagItems);};
-function Action2(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon2,draggable:true}).addTo(sitetagItems);};
-function Action3(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon3,draggable:true}).addTo(sitetagItems);};
-function Action4(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon4,draggable:true}).addTo(sitetagItems);};
-function Action5(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon5,draggable:true}).addTo(sitetagItems);};
-function Action6(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon6,draggable:true}).addTo(sitetagItems);};
-function Action7(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon7,draggable:true}).addTo(sitetagItems);};
-function Action8(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon8,draggable:true}).addTo(sitetagItems);};
-function Action9(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon9,draggable:true}).addTo(sitetagItems);};
-function Action10(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon10,draggable:true}).addTo(sitetagItems);};
-
-function Action11(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon11,draggable:true}).addTo(sitetagItems);};
-function Action12(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon12,draggable:true}).addTo(sitetagItems);};
-function Action13(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon13,draggable:true}).addTo(sitetagItems);};
-function Action14(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon14,draggable:true}).addTo(sitetagItems);};
-function Action15(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon15,draggable:true}).addTo(sitetagItems);};
-function Action16(){sitetagItems.eachLayer(function(l){sitetagItems.removeLayer(l)});; {myLocation.eachLayer(function(aa){myLocation.removeLayer(aa)})};; {drawnItems.eachLayer(function(ab){drawnItems.removeLayer(ab)})};; {cartoData.eachLayer(function(bb){cartoData.removeLayer(bb)})}    };;
-
-//function Action17(){sitetagItems.eachLayer(function(l){sitetagItems.removeLayer(l)});
-
-
-
-
+    //function to add site markers on button click 
+    function Action1(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon1,draggable:true}).addTo(sitetagItems);}
+    function Action2(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon2,draggable:true}).addTo(sitetagItems);}
+    function Action3(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon3,draggable:true}).addTo(sitetagItems);}
+    function Action4(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon4,draggable:true}).addTo(sitetagItems);}
+    function Action5(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon5,draggable:true}).addTo(sitetagItems);}
+    function Action6(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon6,draggable:true}).addTo(sitetagItems);}
+    function Action7(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon7,draggable:true}).addTo(sitetagItems);}
+    function Action8(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon8,draggable:true}).addTo(sitetagItems);}
+    function Action9(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon9,draggable:true}).addTo(sitetagItems);}
+    function Action10(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon10,draggable:true}).addTo(sitetagItems);}
+    function Action11(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon11,draggable:true}).addTo(sitetagItems);}
+    function Action12(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon12,draggable:true}).addTo(sitetagItems);}
+    function Action13(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon13,draggable:true}).addTo(sitetagItems);}
+    function Action14(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon14,draggable:true}).addTo(sitetagItems);}
+    function Action15(){var bounds = map.getBounds();var center = bounds.getCenter();L.marker([center.lat,center.lng], {icon: myIcon15,draggable:true}).addTo(sitetagItems);}
+    function Action16(){
+        sitetagItems.eachLayer(function(l){sitetagItems.removeLayer(l)});
+        myLocation.eachLayer(function(aa){myLocation.removeLayer(aa)});
+        drawnItems.eachLayer(function(ab){drawnItems.removeLayer(ab)});
+        cartoData.eachLayer(function(bb){cartoData.removeLayer(bb)});
+    }
 </script>
-
 
 <script>
     var drawingArrow = false;
-    var arrowStart = null;
+    var arrowStart   = null;
 
     function startDrawingArrow() {
         drawingArrow = true;
-        arrowStart = null;
+        arrowStart   = null;
         map.once('click', function(e) {
             arrowStart = e.latlng;
             map.once('click', defineArrowEnd);
@@ -855,11 +703,62 @@ function Action16(){sitetagItems.eachLayer(function(l){sitetagItems.removeLayer(
     }
 
     document.getElementById('drawArrowBtn').onclick = startDrawingArrow;
-    
+
+    // Show auto-closing toast (appears instantly, disappears after 0.5s)
+    function showCopyToast() {
+        var t = document.getElementById("copyToast");
+        t.style.opacity = "1";
+
+        setTimeout(function () {
+            t.style.opacity = "0";
+        }, 500); // hide after 0.5 seconds
+    }
+
+    // Copy the lat,lng of the double-click marker into the clipboard
+    function copyDblClickMarkerLatLng() {
+        if (!dblClickMarker) {
+            alert("No marker found.\nDouble-click on the map to place the marker first.");
+            return;
+        }
+
+        var pos = dblClickMarker.getLatLng();
+        var text = pos.lat.toFixed(6) + ", " + pos.lng.toFixed(6);
+
+        // Modern clipboard API
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text)
+                .then(function () {
+                    showCopyToast();  // SUCCESS
+                })
+                .catch(function (err) {
+                    console.error("Clipboard write failed", err);
+                    alert("Copy failed, please copy this manually:\n" + text);
+                });
+        } 
+        else {
+            // Older browser fallback
+            var temp = document.createElement("textarea");
+            temp.value = text;
+            temp.style.position = "fixed";
+            temp.style.top = "-9999px";
+            document.body.appendChild(temp);
+            temp.select();
+
+            try {
+                document.execCommand("copy");
+                showCopyToast(); // SUCCESS
+            } 
+            catch (e) {
+                console.error("Fallback copy failed", e);
+                alert("Copy failed, please copy this manually:\n" + text);
+            }
+
+            document.body.removeChild(temp);
+        }
+    }
+
+    document.getElementById('copyDblClickMarkerBtn').onclick = copyDblClickMarkerLatLng;
 </script>
 
-    
 </body>
-
-    
 </html>
