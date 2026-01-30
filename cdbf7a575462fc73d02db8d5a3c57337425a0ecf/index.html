@@ -36,6 +36,24 @@
         #sB15 {position: absolute;  top: 690px;  right: 10px;  padding: 10px;  z-index: 400;}
         #rB1  {position: absolute;  top: 730px;  right: 10px;  padding: 10px;  z-index: 400;}
 
+        #cB1 {
+            position: absolute;
+            top: 770px;      /* under Refresh (730px) */
+            right: 10px;
+            padding: 10px;
+             z-index: 400;
+            }
+
+            .completeModeOn {
+            background: #2e7d32;
+            color: #ffffff;
+                }
+            /* Cursor while Complete Mode is active */
+            .complete-cursor {
+            cursor: crosshair !important;
+            }
+
+
         #drawArrowBtn {
             cursor: pointer;
             background:  color: ##ffffff;
@@ -133,6 +151,12 @@
 <button class="siteButtons" onclick="Action15()" id="sB15"> Site 15 </button>
 
 <button class="siteButtons" onclick="Action16()" id="rB1"> Refresh </button>
+
+<button class="siteButtons" onclick="toggleCompleteMode()" id="cB1">
+  Mark Complete
+</button>
+
+
 
 <button id="drawArrowBtn">></button>
 
@@ -337,6 +361,75 @@
             iconUrl:   'images/newpinhollow1.png'
         }
     });
+
+    // ===== PLAN B: Complete Mode =====
+var completeMode = false;
+
+function styleByStatus(feature) {
+  if (feature.properties && feature.properties.status === "complete") {
+    return { color: "#00a000", weight: 5, opacity: 0.65 }; // green
+  }
+  return { color: "#f10200", weight: 5, opacity: 0.65 };   // red
+}
+
+function toggleCompleteMode() {
+  completeMode = !completeMode;
+
+  var btn = document.getElementById("cB1");
+  var mapContainer = map.getContainer();
+
+  if (completeMode) {
+    btn.classList.add("completeModeOn");
+    btn.innerText = "Complete Mode: ON";
+    mapContainer.classList.add("complete-cursor");
+  } else {
+    btn.classList.remove("completeModeOn");
+    btn.innerText = "Mark Complete";
+    mapContainer.classList.remove("complete-cursor");
+  }
+}
+
+function togglePolygonStatus(layer) {
+
+  layer.status = (layer.status === "complete") ? "open" : "complete";
+
+  // Update style immediately
+  if (layer.status === "complete") {
+    layer.setStyle({ color: "#00a000", weight: 5, opacity: 0.65 });
+  } else {
+    layer.setStyle({ color: "#f10200", weight: 5, opacity: 0.65 });
+  }
+
+  // Persist using SECURITY DEFINER function
+  var geomJson = JSON.stringify(layer.toGeoJSON().geometry).replace(/'/g, "''");
+var areaVal = (layer.feature && layer.feature.properties && layer.feature.properties.area)
+  ? layer.feature.properties.area
+  : 0;
+
+var sql2 =
+  "SELECT draw_items_upsert(" +
+  "ARRAY[" + layer.cartodb_id + "]," +
+  "ARRAY['" + geomJson + "']," +
+  "ARRAY[" + areaVal + "]::numeric[]," +
+  "ARRAY['" + layer.status + "']," +
+  "ARRAY['']" +              // preserve fsrn_db
+  ");";
+
+
+  fetch(urlSmall, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: "q=" + encodeURI(sql2)
+  })
+  .then(r => r.json())
+  .then(d => console.log("Status updated:", d))
+  .catch(err => {
+    console.log("Problem saving status:", err);
+    alert("Failed to update status in database.");
+  });
+}
+
+
     
     //remove clear all option from delete dust bin 
     L.EditToolbar.Delete.include({
@@ -409,7 +502,7 @@
         
         // Set SQL query to add closest 50 polygons from drawn items 
         let sqlQueryClosest = 
-            "SELECT cartodb_id, geom, name_lat, area, fsrn_db  FROM drawn_items " + 
+            "SELECT cartodb_id, geom, name_lat, area, fsrn_db, status  FROM drawn_items " + 
             "ORDER BY (ST_Centroid(geom))::geography <-> ST_SetSRID(ST_MakePoint(" + 
             click.lng + "," + click.lat + 
             "), 4326)::geography LIMIT 50";
@@ -422,17 +515,29 @@
             .then(function(data) {
                 console.log(data);
 
-                geojsonLayer = L.geoJson(data, {
-                    style: myStyle, 
-                    onEachFeature:  function (feature, layer) {
-                        layer.cartodb_id = feature.properties.cartodb_id;
-                        layer.bindPopup(
-                            "Area:  "+ feature.properties.area + " acres" + 
-                            "<br>Report Ref: " + feature.properties.fsrn_db
-                        );
-                        myLocation.addLayer(layer);
-                    }
-                });  
+               geojsonLayer = L.geoJson(data, {
+  style: styleByStatus,
+
+  onEachFeature: function (feature, layer) {
+
+    layer.cartodb_id = feature.properties.cartodb_id;
+    layer.status = feature.properties.status || "open";
+
+    layer.bindPopup(
+      "Area: " + feature.properties.area + " acres" +
+      "<br>Report Ref: " + feature.properties.fsrn_db +
+      "<br>Status: " + layer.status
+    );
+
+    layer.on("click", function () {
+      if (!completeMode) return;
+      togglePolygonStatus(layer);
+    });
+
+    myLocation.addLayer(layer);
+  }
+});
+ 
 
                 map.addLayer(myLocation);
             });
@@ -442,6 +547,8 @@
         var cartodb_ids = [];
         var geojsons    = [];
         var area_updates= [];
+        var status_updates = [];
+        var fsrn_updates = [];
 
         function calcArea(layer) {
             return (L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]) * 0.000247105).toFixed(2);
@@ -457,6 +564,8 @@
                     cartodb_ids.push(layer.cartodb_id);
                     geojsons.push("'" + JSON.stringify(layer.toGeoJSON().geometry) + "'");
                     area_updates.push([calcArea(layer)]);
+                    status_updates.push("''");
+                    fsrn_updates.push("''");
                 });
                 break;
 
@@ -465,17 +574,24 @@
                     cartodb_ids.push(layer.cartodb_id);
                     geojsons.push("''");
                     area_updates.push("0");
+                    status_updates.push("''");
+                    fsrn_updates.push("''");
                 });
                 break;
         }
 
-        var sql2  = "SELECT draw_items_upsert(ARRAY[";
-        sql2     += cartodb_ids.join(",");
-        sql2     += "],ARRAY[";
-        sql2     += geojsons.join(",");
-        sql2     += "],ARRAY[";
-        sql2     += area_updates.join(",");
-        sql2     += "]::numeric[]);";
+     var sql2 = "SELECT draw_items_upsert(ARRAY[";
+sql2 += cartodb_ids.join(",");
+sql2 += "],ARRAY[";
+sql2 += geojsons.join(",");
+sql2 += "],ARRAY[";
+sql2 += area_updates.join(",");
+sql2 += "]::numeric[],ARRAY[";
+sql2 += status_updates.join(",");
+sql2 += "],ARRAY[";
+sql2 += fsrn_updates.join(",");
+sql2 += "]);";
+
 
         console.log("persisting... " + sql2);
         $.ajax({
@@ -553,13 +669,19 @@
                 let seeArea  = L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]);
                 let seeArea2 = (seeArea * 0.000247105).toFixed(2);
                
-                let drawing = JSON.stringify(layer.toGeoJSON().geometry);
-                let sql = 
-                    "INSERT INTO drawn_items (geom, fsrn_db, area) " + 
-                    "VALUES (ST_SetSRID(ST_GeomFromGeoJSON('" + 
-                    drawing + "'), 4326), '" + 
-                    enteredFSRN + "', '" +
-                    seeArea2 + "')";
+                let drawing = JSON.stringify(layer.toGeoJSON().geometry).replace(/'/g, "''");
+
+// Insert via SECURITY DEFINER function (cartodb_id < 0 triggers insert)
+let sql =
+  "SELECT draw_items_upsert(" +
+  "ARRAY[-1]," +
+  "ARRAY['" + drawing + "']," +
+  "ARRAY[" + seeArea2 + "]::numeric[]," +
+  "ARRAY['open']," +
+  "ARRAY['" + enteredFSRN.replace(/'/g, "''") + "']" +
+  ");";
+
+
                 console.log(urlSmall + sql);
 
                 fetch(urlSmall, {
