@@ -84,6 +84,76 @@
             background: #ffffff;
         }
 
+/* Subject button - same style as Save LngLat, positioned below it */
+#subjectBtn {
+    cursor: pointer;
+    border: 2px solid #c6c0ab;
+    padding: 0 10px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+    height: 33px;
+    border-radius: 4px;
+    position: absolute;
+    top: 440px;   /* below Save LngLat (360px) */
+    left: 10px;
+    z-index: 400;
+    background: #ffffff;
+}
+
+/* ON state (similar idea to Complete button) */
+.subjectModeOn {
+    background: rgb(243, 10, 215) !important;
+    color: #ffffff !important;
+    border-color: rgb(243, 10, 215) !important;
+}
+
+
+/* Cursor while Subject Mode is active */
+.subject-cursor {
+    cursor: crosshair !important;
+}
+
+
+
+/* Subject Buffer button - same style, positioned below Subject */
+#subjectBufferBtn {
+    cursor: pointer;
+    border: 2px solid #c6c0ab;
+    padding: 0 10px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+    height: 33px;
+    border-radius: 4px;
+    position: absolute;
+    top: 480px;   /* below Subject (400px) */
+    left: 10px;
+    z-index: 400;
+    background: #ffffff;
+}
+
+/* ON state (blue) */
+.subjectBufferModeOn {
+    background: rgb(42, 34, 233) !important;
+    color: #ffffff !important;
+    border-color: rgb(42, 34, 233) !important;
+}
+
+
+/*Subject Marker Button - same style, positioned below Subject */
+#subjectMarkerBtn {
+    cursor: pointer;
+    border: 2px solid #c6c0ab;
+    padding: 0 10px;
+    box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+    height: 33px;
+    border-radius: 4px;
+    position: absolute;
+    top: 520px;   /* below Subject Buffer (440px) */
+    left: 10px;
+    z-index: 400;
+    background: #ffffff;
+}
+
+
+
         /* Toast that shows "LngLat Saved" for 0.5s */
         #copyToast {
             position: absolute;
@@ -100,6 +170,56 @@
         }
         
         .siteButtons:hover{opacity: 0.8;  cursor: pointer;}
+
+/* Bottom-left multiplier control (vertical chips) */
+.frame-multiplier-control {
+  background: rgba(255,255,255,0.92);
+  padding: 6px 6px;
+  border-radius: 6px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.25);
+  border: 1px solid #c6c0ab;
+  font-family: Arial, sans-serif;
+  user-select: none;
+}
+
+.frame-multiplier-control .chip-row {
+  display: flex;
+  flex-direction: column;   /* 🔹 vertical stack */
+  gap: 6px;
+}
+
+.frame-multiplier-control input[type="radio"] {
+  display: none;
+}
+
+.frame-multiplier-control label {
+  display: block;           /* full-width clickable */
+  text-align: center;
+  padding: 4px 10px;
+  border-radius: 14px;
+  border: 1px solid #c6c0ab;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.frame-multiplier-control input[type="radio"]:checked + label {
+  background: rgb(0, 96, 135);
+  color: #ffffff;
+  border-color: rgb(0, 96, 135);
+}
+
+/* Move the bottom-left multiplier control up slightly */
+.leaflet-bottom.leaflet-left .frame-multiplier-control {
+  margin-bottom: 36px;   /* ~30px up (tweak as needed) */
+  margin-left: 6px;
+}
+
+
+
+
+
     </style>
   
 </head>
@@ -163,6 +283,13 @@
 <!-- New button to save LngLat of the double-click marker -->
 <button id="copyDblClickMarkerBtn">Save LngLat</button>
 
+<!-- New button to draw "Subject" boundary polygon -->
+<button id="subjectBtn">Subject</button>
+<button id="subjectBufferBtn">Subject Buffer</button>
+<button id="subjectMarkerBtn">Subject Marker</button>
+
+
+
 <canvas id="myCanvasElement"></canvas>
 
 <!-- Toast message -->
@@ -180,6 +307,11 @@
 
 <script src="js/leaflet.contextmenu.js"></script>
 <script src="js/leaflet-arrowheads.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+
+
 
 <script>
     //variables for map
@@ -279,22 +411,77 @@
     var mapContainer = map.getContainer();
     mapContainer.appendChild(myCanvasElement);
 
+// === Frame multiplier (default 1.0) ===
+var frameMultiplier = 1.0;
+
+// Create a Leaflet control bottom-left with "chips"
+var FrameMultiplierControl = L.Control.extend({
+  options: { position: 'bottomleft' },
+
+  onAdd: function () {
+    var container = L.DomUtil.create('div', 'frame-multiplier-control');
+    container.innerHTML =
+      '<div class="chip-row" id="frameMultChips"></div>';
+
+    // Prevent clicks on the control from interacting with the map
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.disableScrollPropagation(container);
+
+    // Build chip set: 1, 1.1 ... 2.2
+    var values = [1,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9,2.0,2.1,2.2];
+    var chips = container.querySelector('#frameMultChips');
+
+    values.forEach(function(v, idx) {
+      var id = 'fm_' + String(v).replace('.', '_');
+
+      // Default selected = 1
+      var checked = (v === 1) ? 'checked' : '';
+
+      chips.insertAdjacentHTML('beforeend',
+        '<input type="radio" name="frameMult" id="' + id + '" value="' + v + '" ' + checked + '>' +
+        '<label for="' + id + '">' + (v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)) + '</label>'
+      );
+    });
+
+    // Listen for changes
+    container.addEventListener('change', function(e) {
+      if (e.target && e.target.name === 'frameMult') {
+        frameMultiplier = parseFloat(e.target.value) || 1.0;
+
+        // Redraw frame immediately using existing zoom logic
+        map.fire('zoomend');
+      }
+    });
+
+    return container;
+  }
+});
+
+map.addControl(new FrameMultiplierControl());
+
+
+
+
     // Draw on the canvas...
     var context = myCanvasElement.getContext('2d');
     context.strokeStyle = 'rgb(99, 99, 99)';
     var w  = 1530;
     var w1 = 765;
     var w2 = 382;
+    var w3 = w2 / 2;
     var h  = 2160;
     var h1 = 1080;
     var h2 = 540;
+    var h3 = h2 / 2;
     var x  = (mapSize.x - w)  / 2;
     var x1 = (mapSize.x - w1) / 2;
     var x2 = (mapSize.x - w2) / 2;
+    var x3 = (mapSize.x - w3) / 2;
 
     var y  = (mapSize.y - h)  / 2;
     var y1 = (mapSize.y - h1) / 2;
     var y2 = (mapSize.y - h2) / 2;
+    var y3 = (mapSize.y - h3) / 2;
 
     var myRadius13 = 686;
     var myRadius12 = 343;
@@ -332,12 +519,34 @@
     };
 
     //add and remove rectangles when zooming    
-    map.on('zoomend', function () {
-        context.clearRect(0, 0, mapSize.x, mapSize.y);
-        if (map.getZoom() == 11 )      { context.strokeRect(x2, y2, w2, h2); }
-        else if (map.getZoom() == 12 ) { context.strokeRect(x1, y1, w1, h1); }
-        else if (map.getZoom() == 13 ) { context.strokeRect(x,  y,  w,  h ); }
-    });
+map.on('zoomend', function () {
+    context.clearRect(0, 0, mapSize.x, mapSize.y);
+
+    if (map.getZoom() == 10 ) {
+        var ww = w3 * frameMultiplier, hh = h3 * frameMultiplier;
+        var xx = (mapSize.x - ww) / 2, yy = (mapSize.y - hh) / 2;
+        context.strokeRect(xx, yy, ww, hh);
+    }
+    else if (map.getZoom() == 11 ) {
+        var ww = w2 * frameMultiplier, hh = h2 * frameMultiplier;
+        var xx = (mapSize.x - ww) / 2, yy = (mapSize.y - hh) / 2;
+        context.strokeRect(xx, yy, ww, hh);
+    }
+    else if (map.getZoom() == 12 ) {
+        var ww = w1 * frameMultiplier, hh = h1 * frameMultiplier;
+        var xx = (mapSize.x - ww) / 2, yy = (mapSize.y - hh) / 2;
+        context.strokeRect(xx, yy, ww, hh);
+    }
+    else if (map.getZoom() == 13 ) {
+        var ww = w * frameMultiplier, hh = h * frameMultiplier;
+        var xx = (mapSize.x - ww) / 2, yy = (mapSize.y - hh) / 2;
+        context.strokeRect(xx, yy, ww, hh);
+    }
+});
+
+
+
+
 
     //adds drawn items layer 
     var drawnItems = new L.FeatureGroup().addTo(map);
@@ -347,6 +556,14 @@
 
     //adds my location layer (drawnoption custom marker hollow pin)
     var myLocation = new L.FeatureGroup().addTo(map);
+
+// Subject boundary polygons (purple) - deletable
+var subjectItems = new L.FeatureGroup().addTo(map);
+
+// A single edit group Leaflet.draw will manage (so it can delete both kinds)
+var editLayers = new L.FeatureGroup().addTo(map);
+
+
 
     let cartoData = L.layerGroup().addTo(map);
 
@@ -361,6 +578,76 @@
             iconUrl:   'images/newpinhollow1.png'
         }
     });
+
+
+
+// Subject buffer polygons (derived, not editable, not persisted)
+var subjectBufferItems = new L.FeatureGroup().addTo(map);
+
+var subjectBufferMode = false;
+
+var subjectBufferStyle = {
+  color: 'rgb(0, 0, 255)',
+  weight: 3,
+  opacity: 1,
+  fill: false
+};
+
+// Build / rebuild the buffer layer from current subject polygons
+function rebuildSubjectBuffer() {
+  subjectBufferItems.clearLayers();
+
+  // No subject polygons? nothing to buffer
+  if (subjectItems.getLayers().length === 0) return;
+
+  subjectItems.eachLayer(function(layer) {
+    // buffer expects GeoJSON in WGS84
+    var gj = layer.toGeoJSON();
+
+    try {
+      // 75m buffer
+      var buff = turf.buffer(gj, 75, { units: 'meters' });
+
+      // Add to map (non-interactive overlay)
+      L.geoJSON(buff, {
+        style: subjectBufferStyle,
+        interactive: false
+      }).eachLayer(function(l){
+        subjectBufferItems.addLayer(l);
+      });
+
+    } catch (err) {
+      console.log("Buffer failed:", err);
+    }
+  });
+}
+
+function toggleSubjectBufferMode() {
+  subjectBufferMode = !subjectBufferMode;
+
+  var btn = document.getElementById("subjectBufferBtn");
+
+  if (subjectBufferMode) {
+    btn.classList.add("subjectBufferModeOn");
+    btn.innerText = "Subject Buffer: ON";
+    rebuildSubjectBuffer();
+  } else {
+    btn.classList.remove("subjectBufferModeOn");
+    btn.innerText = "Subject Buffer";
+    subjectBufferItems.clearLayers();
+  }
+}
+
+document.getElementById("subjectBufferBtn").onclick = toggleSubjectBufferMode;
+
+
+
+
+
+
+
+
+
 
     // ===== PLAN B: Complete Mode =====
 var completeMode = false;
@@ -462,12 +749,9 @@ var sql2 =
             }
         },
         edit: {
-            featureGroup: drawnItems,
-            layerGroup: sitetagItems,
-            featureGroup: myLocation,
-            layerGroup: cartoData,
-            remove: true
-        }
+    featureGroup: editLayers,
+    remove: true
+}
     });
 
     map.addControl(map.drawControl);
@@ -535,6 +819,7 @@ var sql2 =
     });
 
     myLocation.addLayer(layer);
+    editLayers.addLayer(layer);
   }
 });
  
@@ -613,13 +898,32 @@ sql2 += "]);";
         });
     }
 
-    // On draw - create editable popup
+    // On draw - create editable popup - and deal with subject layers 
     map.addEventListener("draw:created", function(e) {
-        e.layer.addTo(drawnItems);
-        createFormPopup();
-        var layers = e.layer;
-        drawnItems.addLayer(layers);
-    });
+    var layer = e.layer;
+
+    // If Subject Mode is ON, store polygon as subject boundary
+    if (subjectMode && e.layerType === "polygon") {
+        layer.isSubject = true;
+        layer.setStyle(subjectStyle);
+
+        subjectItems.addLayer(layer);
+        editLayers.addLayer(layer);     //  makes it deletable via draw toolbar
+
+        // If you want to keep drawing multiple subject polygons while ON:
+        if (subjectDrawer) {
+          subjectDrawer.enable();
+        }
+
+        return; // IMPORTANT: don't run your normal drawn-items workflow
+    }
+
+    // Normal polygon workflow (old existing behaviour)
+    drawnItems.addLayer(layer);
+    editLayers.addLayer(layer);         // makes normal polygons deletable too
+    createFormPopup();
+});
+
 
     // On edit or delete - Close popup
     map.addEventListener("draw:editstart", function(e) {
@@ -628,18 +932,53 @@ sql2 += "]);";
     map.addEventListener("draw:deletestart", function(e) {
         drawnItems.closePopup();
     });
+
+
     map.addEventListener("draw:editstop", function(e) {
-        var layers = e.layers;
-        persistOnCartoDB("UPDATE", layers);
+    // Only persist DB-backed layers (exclude subject)
+    var dbLayers = new L.LayerGroup();
+
+    e.layers.eachLayer(function(layer){
+        if (layer.isSubject || layer.cartodb_id == null) return;
+        dbLayers.addLayer(layer);
     });
 
-    map.on('draw:deleted', function (e) {
-        drawnItems.closePopup();
-        console.log("draw:deleted fired");
-        var layers = e.layers;
-        persistOnCartoDB("DELETE", layers);
-        console.log("draw:deleted:delete persistOnCartoDB fired");
+    if (dbLayers.getLayers().length > 0) {
+        persistOnCartoDB("UPDATE", dbLayers);
+    }
     });
+
+
+    map.on('draw:deleted', function (e) {
+    drawnItems.closePopup();
+    console.log("draw:deleted fired");
+
+    // Split deleted layers into DB-backed vs local-only (subject)
+    var dbLayers = new L.LayerGroup();
+
+    e.layers.eachLayer(function(layer){
+        // If it's a subject polygon OR has no cartodb_id, do NOT persist
+        if (layer.isSubject || layer.cartodb_id == null) {
+            // still remove from our groups
+            subjectItems.removeLayer(layer);
+            editLayers.removeLayer(layer);
+            return;
+        }
+
+        // DB-backed polygon: send to persistence
+        dbLayers.addLayer(layer);
+
+        // also remove from groups locally
+        myLocation.removeLayer(layer);
+        editLayers.removeLayer(layer);
+    });
+
+    // Only call DB delete if there's something DB-backed
+    if (dbLayers.getLayers().length > 0) {
+        persistOnCartoDB("DELETE", dbLayers);
+        console.log("DB delete persisted");
+    }
+});
 
     function addPopup2 (feature, layer) {
         layer.bindPopup(
@@ -704,7 +1043,9 @@ let sql =
                 let newData = layer.toGeoJSON();
                 newData.properties.fsrn_db = enteredFSRN;
 
-                L.geoJSON(newData, {onEachFeature: addPopup2, style: myStyle}).addTo(myLocation);
+                var saved = L.geoJSON(newData, { onEachFeature: addPopup2, style: myStyle }).addTo(myLocation);
+saved.eachLayer(function(l){ editLayers.addLayer(l); });   // ✅ deletable/editable
+
             });
 
             drawnItems.closePopup();
@@ -764,6 +1105,57 @@ let sql =
         }
     });
     (new ZoomViewer).addTo(map);
+
+// ===== Subject Mode (purple boundary polygon) =====
+var subjectMode = false;
+var subjectDrawer = null;
+
+var subjectStyle = {
+  color: 'rgb(243, 10, 215)',
+  weight: 5,
+  opacity: 0.65,
+  fill: false
+};
+
+function toggleSubjectMode() {
+  subjectMode = !subjectMode;
+
+  var btn = document.getElementById("subjectBtn");
+  var mapContainer = map.getContainer();
+
+  if (subjectMode) {
+    btn.classList.add("subjectModeOn");
+    btn.innerText = "Subject: ON";
+    mapContainer.classList.add("subject-cursor");
+
+    // Start drawing a polygon immediately
+    subjectDrawer = new L.Draw.Polygon(map, {
+      shapeOptions: subjectStyle,
+      allowIntersection: false,
+      showArea: true,
+      metric: true
+    });
+    subjectDrawer.enable();
+
+  } else {
+    btn.classList.remove("subjectModeOn");
+    btn.innerText = "Subject";
+    mapContainer.classList.remove("subject-cursor");
+
+    // If currently drawing, disable
+    if (subjectDrawer) {
+      subjectDrawer.disable();
+      subjectDrawer = null;
+    }
+  }
+}
+
+document.getElementById("subjectBtn").onclick = toggleSubjectMode;
+
+
+
+
+
 
 </script>
 
@@ -880,6 +1272,24 @@ let sql =
     }
 
     document.getElementById('copyDblClickMarkerBtn').onclick = copyDblClickMarkerLatLng;
+
+
+
+function dropSubjectMarkerAtCenter() {
+    var center = map.getBounds().getCenter();
+
+    L.marker([center.lat, center.lng], {
+        icon: redIcon,
+        draggable: true
+    }).addTo(sitetagItems);
+}
+
+document.getElementById("subjectMarkerBtn").onclick = dropSubjectMarkerAtCenter;
+
+
+
+
+    
 </script>
 
 </body>
