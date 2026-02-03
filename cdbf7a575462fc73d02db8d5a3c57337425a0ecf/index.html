@@ -842,29 +842,33 @@ var sql2 =
         console.log(action + " persistOnCartoDB");
 
         switch (action) {
-            case "UPDATE":
-                console.log(myLocation.getLayers().length);
-                if (myLocation.getLayers().length < 1) return;
 
-                myLocation.eachLayer(function(layer) {
-                    cartodb_ids.push(layer.cartodb_id);
-                    geojsons.push("'" + JSON.stringify(layer.toGeoJSON().geometry) + "'");
-                    area_updates.push([calcArea(layer)]);
-                    status_updates.push("''");
-                    fsrn_updates.push("''");
-                });
-                break;
+  case "UPDATE":
+    if (!layers || layers.getLayers().length < 1) return;
 
-            case "DELETE":
-                layers.eachLayer(function(layer) {
-                    cartodb_ids.push(layer.cartodb_id);
-                    geojsons.push("''");
-                    area_updates.push("0");
-                    status_updates.push("''");
-                    fsrn_updates.push("''");
-                });
-                break;
-        }
+    layers.eachLayer(function(layer) {
+      cartodb_ids.push(layer.cartodb_id);
+      geojsons.push("'" + JSON.stringify(layer.toGeoJSON().geometry) + "'");
+      area_updates.push(calcArea(layer));
+
+      // preserve existing values in DB
+      status_updates.push("''");
+      fsrn_updates.push("''");
+    });
+    break;
+
+  case "DELETE":
+    if (!layers || layers.getLayers().length < 1) return;
+
+    layers.eachLayer(function(layer) {
+      cartodb_ids.push(layer.cartodb_id);
+      geojsons.push("''");     // empty -> NULL geom in your SQL function -> delete path
+      area_updates.push("0");
+      status_updates.push("''");
+      fsrn_updates.push("''");
+    });
+    break;
+}
 
      var sql2 = "SELECT draw_items_upsert(ARRAY[";
 sql2 += cartodb_ids.join(",");
@@ -889,9 +893,22 @@ sql2 += "]);";
             },
             dataType: 'json',
             success: function(responseData, textStatus, jqXHR) {
-                console.log("Data saved"+ responseData);
-                if (action == "INSERT")
-                    layers.cartodb_id = responseData.rows[0].cartodb_id;
+                console.log("DB response:", responseData);
+console.log("Rows:", responseData && responseData.rows);
+                if (action === "INSERT" && responseData && responseData.rows && responseData.rows[0]) {
+
+  var row = responseData.rows[0];
+
+  // draw_items_upsert returns "(op,id)" e.g. "(1,45030)"
+  if (row.draw_items_upsert) {
+    var match = String(row.draw_items_upsert).match(/\(\s*-?\d+\s*,\s*(\d+)\s*\)/);
+    if (match) {
+      layers.cartodb_id = parseInt(match[1], 10);
+      console.log("Stamped cartodb_id:", layers.cartodb_id);
+    }
+  }
+}
+
             },
             error: function(responseData, textStatus, errorThrown) {
                 console.log("Problem saving the data " + responseData);
@@ -935,19 +952,20 @@ sql2 += "]);";
     });
 
 
-    map.addEventListener("draw:editstop", function(e) {
-    // Only persist DB-backed layers (exclude subject)
-    var dbLayers = new L.LayerGroup();
+   // Persist edits after Leaflet.draw applies them (reliable event)
+map.on("draw:edited", function(e) {
+  var dbLayers = new L.LayerGroup();
 
-    e.layers.eachLayer(function(layer){
-        if (layer.isSubject || layer.cartodb_id == null) return;
-        dbLayers.addLayer(layer);
-    });
+  e.layers.eachLayer(function(layer) {
+    if (layer.isSubject || layer.cartodb_id == null) return;
+    dbLayers.addLayer(layer);
+  });
 
-    if (dbLayers.getLayers().length > 0) {
-        persistOnCartoDB("UPDATE", dbLayers);
-    }
-    });
+  if (dbLayers.getLayers().length > 0) {
+    persistOnCartoDB("UPDATE", dbLayers);
+  }
+});
+
 
 
     map.on('draw:deleted', function (e) {
@@ -1024,28 +1042,58 @@ let sql =
 
                 console.log(urlSmall + sql);
 
-                fetch(urlSmall, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/x-www-form-urlencoded"
-                    },
-                    body: "q=" + encodeURI(sql)
-                })
-                .then(function(response) {
-                    return response.json();
-                })
-                .then(function(data) {
-                    console.log("Data saved:", data);
-                })
-                .catch(function(error) {
-                    console.log("Problem saving the data:", error);
-                });
-                
                 let newData = layer.toGeoJSON();
-                newData.properties.fsrn_db = enteredFSRN;
+newData.properties.fsrn_db = enteredFSRN;
 
-                var saved = L.geoJSON(newData, { onEachFeature: addPopup2, style: myStyle }).addTo(myLocation);
-saved.eachLayer(function(l){ editLayers.addLayer(l); });   // ✅ deletable/editable
+// Add to map immediately 
+var saved = L.geoJSON(newData, { onEachFeature: addPopup2, style: myStyle }).addTo(myLocation);
+saved.eachLayer(function(l){ editLayers.addLayer(l); });
+
+// remove the temporary drawn polygon from the delete/edit group
+editLayers.removeLayer(layer);
+
+fetch(urlSmall, {
+  method: "POST",
+  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  body: "q=" + encodeURI(sql)
+})
+.then(function(response) { return response.json(); })
+.then(function(data) {
+  console.log("Data saved:", data);
+
+  var newId = null;
+
+  if (data && data.rows && data.rows[0]) {
+    var row = data.rows[0];
+
+    if (row.cartodb_id != null) {
+      newId = parseInt(row.cartodb_id, 10);
+    }
+
+    if (!newId && row.draw_items_upsert) {
+      var m = String(row.draw_items_upsert).match(/\(\s*-?\d+\s*,\s*(\d+)\s*\)/);
+      if (m) newId = parseInt(m[1], 10);
+    }
+  }
+
+  if (!newId) return;
+
+  saved.eachLayer(function(l){
+    l.cartodb_id = newId;
+    l.status = "open";
+
+    if (l.feature && l.feature.properties) {
+      l.feature.properties.cartodb_id = newId;
+      l.feature.properties.status = "open";
+    }
+  });
+})
+.catch(function(error) {
+  console.log("Problem saving the data:", error);
+});
+
+
+
 
             });
 
