@@ -3,9 +3,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>DevAssist Maps V100 | phase 6</title>
-<link rel="icon" href="images/dalogo.png" type="image/png" />
-    
+    <title>DevAssist Maps V96 | phase 5</title>
+
     <link rel="stylesheet" href="css/CartoDB.css"/>
     <script src="js/CartoDB.js"></script>
     
@@ -358,6 +357,8 @@
         layers: [ leisure, road ],
         minZoom: 0,
         maxZoom: 14,
+        zoomSnap: 0.5,
+        zoomDelta: 0.5,
         maxNativeZoom: 13,
         center: transformCoords([ 247692 , 55333]),
         zoom: 10,
@@ -512,37 +513,36 @@ map.addControl(new FrameMultiplierControl());
         myIcon14 = new LeafIcon({iconUrl: 'images/s14.png'}),
         myIcon15 = new LeafIcon({iconUrl: 'images/s15.png'});
 
-    //define myStyle
-    var myStyle = {
-        "color": "#f10200",
-        "weight": 5,
-        "opacity": 0.65
-    };
+        //define myStyle
+        var myStyle = {
+            "color": "#f10200",
+            "weight": 4,
+            "opacity": 0.65
+        };
 
     //add and remove rectangles when zooming    
 map.on('zoomend', function () {
-    context.clearRect(0, 0, mapSize.x, mapSize.y);
+  context.clearRect(0, 0, mapSize.x, mapSize.y);
 
-    if (map.getZoom() == 10 ) {
-        var ww = w3 * frameMultiplier, hh = h3 * frameMultiplier;
-        var xx = (mapSize.x - ww) / 2, yy = (mapSize.y - hh) / 2;
-        context.strokeRect(xx, yy, ww, hh);
-    }
-    else if (map.getZoom() == 11 ) {
-        var ww = w2 * frameMultiplier, hh = h2 * frameMultiplier;
-        var xx = (mapSize.x - ww) / 2, yy = (mapSize.y - hh) / 2;
-        context.strokeRect(xx, yy, ww, hh);
-    }
-    else if (map.getZoom() == 12 ) {
-        var ww = w1 * frameMultiplier, hh = h1 * frameMultiplier;
-        var xx = (mapSize.x - ww) / 2, yy = (mapSize.y - hh) / 2;
-        context.strokeRect(xx, yy, ww, hh);
-    }
-    else if (map.getZoom() == 13 ) {
-        var ww = w * frameMultiplier, hh = h * frameMultiplier;
-        var xx = (mapSize.x - ww) / 2, yy = (mapSize.y - hh) / 2;
-        context.strokeRect(xx, yy, ww, hh);
-    }
+  var z = map.getZoom();
+
+  // Only draw rec between zoom 10 and 12 (inclusive)
+  if (z < 10 || z > 12) return;
+
+  // Base size at zoom 10 (your existing zoom-10 rectangle)
+  var baseW = w3;
+  var baseH = h3;
+
+  // Scale: +1 zoom => x2, +0.5 zoom => x√2
+ var scale = map.getZoomScale(z, 10);
+
+  var ww = baseW * scale * frameMultiplier;
+  var hh = baseH * scale * frameMultiplier;
+
+  var xx = (mapSize.x - ww) / 2;
+  var yy = (mapSize.y - hh) / 2;
+
+  context.strokeRect(xx, yy, ww, hh);
 });
 
 
@@ -655,9 +655,9 @@ var completeMode = false;
 
 function styleByStatus(feature) {
   if (feature.properties && feature.properties.status === "complete") {
-    return { color: "#00a000", weight: 5, opacity: 0.65 }; // green
+    return { color: "#00a000", weight: 4, opacity: 0.65 }; // green
   }
-  return { color: "#f10200", weight: 5, opacity: 0.65 };   // red
+  return { color: "#f10200", weight: 4, opacity: 0.65 };   // red
 }
 
 function toggleCompleteMode() {
@@ -1113,7 +1113,7 @@ var subjectDrawer = null;
 
 var subjectStyle = {
   color: 'rgb(243, 10, 215)',
-  weight: 5,
+  weight: 3,
   opacity: 0.65,
   fill: false
 };
