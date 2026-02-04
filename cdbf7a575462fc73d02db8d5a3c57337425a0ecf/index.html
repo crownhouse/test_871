@@ -829,6 +829,23 @@ var sql2 =
             });
     });
 
+
+function subjectAreaAcres(layer) {
+  var rings = layer.getLatLngs();
+  if (!rings || !rings.length) return 0;
+
+  var outer = rings[0];
+  var m2 = L.GeometryUtil.geodesicArea(outer);
+  return m2 * 0.000247105; // m² -> acres
+}
+
+function updateSubjectPopup(layer) {
+  var acres = subjectAreaAcres(layer);
+  var html = "<b>Subject Area</b><br>Area: " + acres.toFixed(2) + " acres";
+  layer.bindPopup(html); // updates if already bound
+}
+
+
     function persistOnCartoDB(action, layers) {
         var cartodb_ids = [];
         var geojsons    = [];
@@ -839,7 +856,13 @@ var sql2 =
         function calcArea(layer) {
             return (L.GeometryUtil.geodesicArea(layer.getLatLngs()[0]) * 0.000247105).toFixed(2);
         }
+
+
+
         console.log(action + " persistOnCartoDB");
+
+
+
 
         switch (action) {
 
@@ -925,6 +948,8 @@ console.log("Rows:", responseData && responseData.rows);
         layer.isSubject = true;
         layer.setStyle(subjectStyle);
 
+        updateSubjectPopup(layer);
+
         subjectItems.addLayer(layer);
         editLayers.addLayer(layer);     //  makes it deletable via draw toolbar
 
@@ -965,6 +990,16 @@ map.on("draw:edited", function(e) {
     persistOnCartoDB("UPDATE", dbLayers);
   }
 });
+
+// Update Subject polygon popup area after edits (no DB interaction)
+map.on("draw:edited", function(e) {
+  e.layers.eachLayer(function(layer) {
+    if (layer.isSubject) {
+      updateSubjectPopup(layer);
+    }
+  });
+});
+
 
 
 
