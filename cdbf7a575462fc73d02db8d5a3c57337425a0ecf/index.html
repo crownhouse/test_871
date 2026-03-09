@@ -38,7 +38,7 @@
 
         #cB1 {
             position: absolute;
-            top: 770px;      /* under Refresh (730px) */
+            top: 775px;      /* under Refresh (730px) */
             right: 10px;
             padding: 10px;
              z-index: 400;
@@ -53,10 +53,20 @@
             cursor: crosshair !important;
             }
 
+           #exportPngBtn{
+          position:absolute;
+           top: 820px; 
+           right:10px; 
+           z-index:500;
+           height: 40px;
+            width: 118px;
+
+           } 
+
 
         #drawArrowBtn {
             cursor: pointer;
-            background:  color: ##ffffff;
+            background:  rgba(255,255,255,0.92);
             border: 2px solid #c6c0ab ;
             padding: 0 10px;
             box-shadow: 0 1px 5px rgba(0,0,0,0.2);
@@ -275,6 +285,8 @@
 <button class="siteButtons" onclick="toggleCompleteMode()" id="cB1">
   Mark Complete
 </button>
+
+<button id="exportPngBtn"> Export PNG </button>
 
 
 
@@ -515,10 +527,12 @@ map.addControl(new FrameMultiplierControl());
 
         //define myStyle
         var myStyle = {
-            "color": "#f10200",
-            "weight": 4,
-            "opacity": 0.65
-        };
+         "color": "#f10200",
+         "weight": 4,
+         "opacity": 0.65,
+         "fillColor": "#f10200",
+         "fillOpacity": 0.20
+            };
 
     //add and remove rectangles when zooming    
 map.on('zoomend', function () {
@@ -1236,6 +1250,373 @@ function toggleSubjectMode() {
 
 document.getElementById("subjectBtn").onclick = toggleSubjectMode;
 
+
+function getFrameRectPx() {
+  var mapSize = map.getSize();
+  var z = map.getZoom();
+  if (z < 10 || z > 12) {
+    throw new Error("Export only supported at zoom 10–12 (matches your frame logic).");
+  }
+
+  // Your base frame at zoom 10
+  var baseW = w3; // zoom-10 rectangle width
+  var baseH = h3; // zoom-10 rectangle height
+
+  var scale = map.getZoomScale(z, 10);
+
+  var ww = baseW * scale * frameMultiplier;
+  var hh = baseH * scale * frameMultiplier;
+
+  var xx = (mapSize.x - ww) / 2;
+  var yy = (mapSize.y - hh) / 2;
+
+  return { xx, yy, ww, hh, z };
+}
+
+function frameBbox27700() {
+  var r = getFrameRectPx();
+
+  // Convert pixel corners -> LatLng -> EPSG:27700 meters (Leaflet Point)
+  var tlLatLng = map.containerPointToLatLng([r.xx, r.yy]);
+  var brLatLng = map.containerPointToLatLng([r.xx + r.ww, r.yy + r.hh]);
+
+  var crs = map.options.crs;
+  var tl = crs.project(tlLatLng); // {x:easting, y:northing}
+  var br = crs.project(brLatLng);
+
+  // Normalize bbox (min/max)
+  var minX = Math.min(tl.x, br.x);
+  var maxX = Math.max(tl.x, br.x);
+  var minY = Math.min(tl.y, br.y);
+  var maxY = Math.max(tl.y, br.y);
+
+  return { minX, minY, maxX, maxY, z: r.z };
+}
+
+
+
+
+
+
+async function exportFramePng() {
+  try {
+    var bbox = frameBbox27700();
+
+    // Keep this at 0 for now because overlay math is now aligned to the cropped export
+    var extraZoom = 1;
+    var exportZ = Math.min(14, Math.floor(bbox.z + extraZoom));
+    var scaleFactor = map.getZoomScale(exportZ, bbox.z);
+
+    var params = new URLSearchParams({
+      minX: bbox.minX.toFixed(3),
+      minY: bbox.minY.toFixed(3),
+      maxX: bbox.maxX.toFixed(3),
+      maxY: bbox.maxY.toFixed(3),
+      z: String(exportZ),
+      style: (exportZ >= 10 ? "Road_27700" : "Leisure_27700")
+    });
+
+    // 1) Fetch cropped base map PNG from server
+    var baseUrl = "https://geodcwh.xyz/export-os-tile-stitch.png?" + params.toString();
+    const resp = await fetch(baseUrl);
+    if (!resp.ok) throw new Error("Base export failed: " + resp.status);
+
+    const baseBlob = await resp.blob();
+    const baseImgUrl = URL.createObjectURL(baseBlob);
+
+    const baseImg = await new Promise(function(resolve, reject) {
+      const img = new Image();
+      img.onload = function() { resolve(img); };
+      img.onerror = reject;
+      img.src = baseImgUrl;
+    });
+
+    // 2) Create output canvas
+    const canvas = document.createElement("canvas");
+    canvas.width = baseImg.naturalWidth || baseImg.width;
+    canvas.height = baseImg.naturalHeight || baseImg.height;
+    const ctx = canvas.getContext("2d");
+
+    ctx.drawImage(baseImg, 0, 0);
+    URL.revokeObjectURL(baseImgUrl);
+
+    // 3) Geometry helpers
+    var crs = map.options.crs;
+    var res = crs.options.resolutions[exportZ];
+
+    function localPxFromLatLng(latlng) {
+      var p27700 = crs.project(latlng);
+      return {
+        x: (p27700.x - bbox.minX) / res,
+        y: (bbox.maxY - p27700.y) / res
+      };
+    }
+
+    function localPxFrom27700(x27700, y27700) {
+      return {
+        x: (x27700 - bbox.minX) / res,
+        y: (bbox.maxY - y27700) / res
+      };
+    }
+
+    function flattenLatLngs(latlngs) {
+      if (!Array.isArray(latlngs)) return [];
+      if (latlngs.length === 0) return [];
+      return Array.isArray(latlngs[0]) ? latlngs[0] : latlngs;
+    }
+
+    // 4) Drawing helpers
+    function strokePolyline(latlngs, style) {
+      var pts = flattenLatLngs(latlngs);
+      if (!pts || pts.length < 2) return;
+
+      ctx.save();
+      ctx.beginPath();
+
+      var p0 = localPxFromLatLng(pts[0]);
+      ctx.moveTo(p0.x, p0.y);
+
+      for (var i = 1; i < pts.length; i++) {
+        var p = localPxFromLatLng(pts[i]);
+        ctx.lineTo(p.x, p.y);
+      }
+
+      ctx.strokeStyle = (style && style.color) ? style.color : "#000000";
+      ctx.lineWidth = ((style && style.weight) ? style.weight : 3) * scaleFactor;
+      ctx.globalAlpha = (style && style.opacity != null) ? style.opacity : 1;
+
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawPolygon(latlngs, style) {
+      var rings = Array.isArray(latlngs[0]) ? latlngs : [latlngs];
+      if (!rings || !rings.length) return;
+
+      ctx.save();
+      ctx.beginPath();
+
+      rings.forEach(function(ring) {
+        if (!ring || ring.length < 3) return;
+
+        var p0 = localPxFromLatLng(ring[0]);
+        ctx.moveTo(p0.x, p0.y);
+
+        for (var i = 1; i < ring.length; i++) {
+          var p = localPxFromLatLng(ring[i]);
+          ctx.lineTo(p.x, p.y);
+        }
+
+        ctx.closePath();
+      });
+
+      var fillEnabled = !(style && style.fill === false);
+      if (fillEnabled) {
+        ctx.fillStyle = (style && style.fillColor) ? style.fillColor :
+                        ((style && style.color) ? style.color : "#f10200");
+        ctx.globalAlpha = (style && style.fillOpacity != null) ? style.fillOpacity : 0.2;
+        ctx.fill();
+      }
+
+      ctx.strokeStyle = (style && style.color) ? style.color : "#f10200";
+      ctx.lineWidth = ((style && style.weight) ? style.weight : 4) * scaleFactor;
+      ctx.globalAlpha = (style && style.opacity != null) ? style.opacity : 0.65;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawArrowhead(latlngs, style) {
+      var pts = flattenLatLngs(latlngs);
+      if (!pts || pts.length < 2) return;
+
+      var a = localPxFromLatLng(pts[pts.length - 2]);
+      var b = localPxFromLatLng(pts[pts.length - 1]);
+
+      var dx = b.x - a.x;
+      var dy = b.y - a.y;
+      var len = Math.sqrt(dx * dx + dy * dy);
+      if (len < 1) return;
+
+      var ux = dx / len;
+      var uy = dy / len;
+
+      var size = 10 * scaleFactor;
+      var wing = 6 * scaleFactor;
+
+      var tipX = b.x;
+      var tipY = b.y;
+      var backX = tipX - ux * size;
+      var backY = tipY - uy * size;
+
+      var px = -uy;
+      var py = ux;
+
+      var leftX = backX + px * wing;
+      var leftY = backY + py * wing;
+      var rightX = backX - px * wing;
+      var rightY = backY - py * wing;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(tipX, tipY);
+      ctx.lineTo(leftX, leftY);
+      ctx.lineTo(rightX, rightY);
+      ctx.closePath();
+
+      ctx.fillStyle = (style && style.color) ? style.color : "#000000";
+      ctx.globalAlpha = (style && style.opacity != null) ? style.opacity : 1;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawCircle(layer) {
+      var center = layer.getLatLng();
+      var radiusM = layer.getRadius();
+      var centerPx = localPxFromLatLng(center);
+      var radiusPx = radiusM / res;
+
+      var style = layer.options || {};
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(centerPx.x, centerPx.y, radiusPx, 0, Math.PI * 2);
+
+      if (style.fill) {
+        ctx.fillStyle = style.fillColor || style.color || "blue";
+        ctx.globalAlpha = (style.fillOpacity != null) ? style.fillOpacity : 0.2;
+        ctx.fill();
+      }
+
+      ctx.strokeStyle = style.color || "blue";
+      ctx.lineWidth = ((style.weight || 3) * scaleFactor);
+      ctx.globalAlpha = (style.opacity != null) ? style.opacity : 1;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    var iconCache = new Map();
+
+    async function loadIcon(url) {
+      if (iconCache.has(url)) return iconCache.get(url);
+
+      var promise = new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() { resolve(img); };
+        img.onerror = reject;
+        img.src = url;
+      });
+
+      iconCache.set(url, promise);
+      return promise;
+    }
+
+    async function drawMarker(marker) {
+      var ll = marker.getLatLng();
+      var p = localPxFromLatLng(ll);
+
+      var icon = marker.options.icon;
+      if (!icon || !icon.options || !icon.options.iconUrl) return;
+
+      var iconUrl = new URL(icon.options.iconUrl, document.baseURI).toString();
+      var img = await loadIcon(iconUrl);
+
+      var size = icon.options.iconSize || [25, 41];
+      var anchor = icon.options.iconAnchor || [size[0] / 2, size[1]];
+
+      var w = size[0] * scaleFactor;
+      var h = size[1] * scaleFactor;
+      var ax = anchor[0] * scaleFactor;
+      var ay = anchor[1] * scaleFactor;
+
+      ctx.drawImage(img, p.x - ax, p.y - ay, w, h);
+    }
+
+    // 5) Draw overlays
+
+    // DB polygons / nearby polygons
+    myLocation.eachLayer(function(layer) {
+      if (layer instanceof L.Polygon) {
+        drawPolygon(layer.getLatLngs(), layer.options || {});
+      } else if (layer instanceof L.Polyline) {
+        strokePolyline(layer.getLatLngs(), layer.options || {});
+      }
+    });
+
+    // Subject boundary polygons
+    subjectItems.eachLayer(function(layer) {
+      if (layer instanceof L.Polygon) {
+        drawPolygon(layer.getLatLngs(), layer.options || {});
+      } else if (layer instanceof L.Polyline) {
+        strokePolyline(layer.getLatLngs(), layer.options || {});
+      }
+    });
+
+    // Subject buffers
+    subjectBufferItems.eachLayer(function(layer) {
+      if (layer instanceof L.Polygon) {
+        drawPolygon(layer.getLatLngs(), layer.options || {});
+      } else if (layer instanceof L.Polyline) {
+        strokePolyline(layer.getLatLngs(), layer.options || {});
+      }
+    });
+
+    // Site tags + arrows
+    for (const layer of sitetagItems.getLayers()) {
+      if (layer instanceof L.Marker) {
+        await drawMarker(layer);
+      } else if (layer instanceof L.Polyline) {
+        var latlngs = layer.getLatLngs();
+        var style = layer.options || {};
+        strokePolyline(latlngs, style);
+
+        var flat = flattenLatLngs(latlngs);
+        if (flat && flat.length === 2) {
+          drawArrowhead(flat, style);
+        }
+      } else if (layer instanceof L.Polygon) {
+        drawPolygon(layer.getLatLngs(), layer.options || {});
+      }
+    }
+
+    // Blue circle + red marker from double-click layer
+    for (const layer of cirPin.getLayers()) {
+      if (layer instanceof L.Circle) {
+        drawCircle(layer);
+      } else if (layer instanceof L.Marker) {
+        await drawMarker(layer);
+      }
+    }
+
+    // 6) Download final PNG
+    canvas.toBlob(function(outBlob) {
+      if (!outBlob) {
+        alert("Export failed: no image blob created.");
+        return;
+      }
+
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(outBlob);
+      a.download = "map_export_with_overlays_z" + exportZ + ".png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      setTimeout(function() {
+        URL.revokeObjectURL(a.href);
+      }, 1000);
+    }, "image/png");
+
+  } catch (err) {
+    alert(err.message || String(err));
+  }
+}
+
+
+
+
+document.getElementById("exportPngBtn").onclick = exportFramePng;
 
 
 
