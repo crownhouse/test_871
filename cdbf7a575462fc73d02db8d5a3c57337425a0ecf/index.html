@@ -920,7 +920,7 @@ sql2 += fsrn_updates.join(",");
 sql2 += "]);";
 
 
-        console.log("persisting... " + sql2);
+        
         $.ajax({
             type: 'POST',
             url: 'https://geodcwh.xyz/sql',
@@ -1089,7 +1089,7 @@ let sql =
   ");";
 
 
-                console.log(urlSmall + sql);
+              
 
                 let newData = layer.toGeoJSON();
 newData.properties.fsrn_db = enteredFSRN;
